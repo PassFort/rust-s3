@@ -31,7 +31,8 @@ sha2 = "0.9"
 md5 = "0.7"
 url = "2"
 futures = "0.3"
-tokio = {version="0.2", features=["macros", "io-util", "stream"]}
+tokio = {version="1.10", features=["macros", "rt-multi-thread"]}
+tokio-stream = { version = "0.1.7"}
 simpl = "0.1.0"
 aws-region = "0.22"
 aws-creds = { version="0.24.1", default-features = false }
@@ -51,5 +52,5 @@ native-tls = ["reqwest/native-tls", "aws-creds/native-tls"]
 rustls-tls = ["reqwest/rustls-tls", "aws-creds/rustls-tls"]
 
 [dev-dependencies]
-tokio = {version="0.2", features=["fs"]}
+tokio = {version="1.10", features=["fs"]}
 uuid = { version="0.8", features=["v4"]}
