@@ -85,7 +85,7 @@ impl Bucket {
     pub fn presign_get<S: AsRef<str>>(&self, path: S, expiry_secs: u32) -> Result<String> {
         validate_expiry(expiry_secs)?;
         let request = Request::new(self, path.as_ref(), Command::PresignGet { expiry_secs });
-        Ok(request.presigned()?)
+        request.presigned()
     }
     /// Get a presigned url for putting object to a given path
     ///
@@ -124,7 +124,7 @@ impl Bucket {
                 custom_headers,
             },
         );
-        Ok(request.presigned()?)
+        request.presigned()
     }
     /// Create a new `Bucket` and instantiate it
     ///
@@ -271,7 +271,7 @@ impl Bucket {
     /// ```
     pub fn get_object_blocking<S: AsRef<str>>(&self, path: S) -> Result<(Vec<u8>, u16)> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.get_object(path))?)
+        rt.block_on(self.get_object(path))
     }
 
     /// Gets file from an S3 path, async.
@@ -327,7 +327,7 @@ impl Bucket {
         writer: &mut T,
     ) -> Result<u16> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.get_object_stream(path, writer))?)
+        rt.block_on(self.get_object_stream(path, writer))
     }
 
     /// Stream file from S3 path to a local file, generic over T: Write, async.
@@ -438,7 +438,6 @@ impl Bucket {
                     let abort_request = Request::new(self, &abort_path, abort);
                     let (_, _code) = abort_request.response_data_future(false).await?;
                     self.put_object(s3_path, chunk.as_slice()).await?;
-                    break;
                 } else {
                     part_number += 1;
                     let command = Command::PutObject {
@@ -472,8 +471,8 @@ impl Bucket {
                     let complete_request = Request::new(self, &complete_path, complete);
                     let (_data, _code) = complete_request.response_data_future(false).await?;
                     // let response = std::str::from_utf8(data.as_slice())?;
-                    break;
                 }
+                break;
             } else {
                 part_number += 1;
                 let command = Command::PutObject {
@@ -563,7 +562,7 @@ impl Bucket {
         s3_path: impl AsRef<str>,
     ) -> Result<u16> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.put_object_stream(path, s3_path))?)
+        rt.block_on(self.put_object_stream(path, s3_path))
     }
 
     //// Get bucket location from S3, async
@@ -632,7 +631,7 @@ impl Bucket {
     /// ```
     pub fn location_blocking(&self) -> Result<(Region, u16)> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.location())?)
+        rt.block_on(self.location())
     }
 
     /// Delete file from an S3 path, async.
@@ -682,7 +681,7 @@ impl Bucket {
     /// ```
     pub fn delete_object_blocking<S: AsRef<str>>(&self, path: S) -> Result<(Vec<u8>, u16)> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.delete_object(path))?)
+        rt.block_on(self.delete_object(path))
     }
 
     /// Head object from S3, async.
@@ -727,7 +726,7 @@ impl Bucket {
     /// ```
     pub fn head_object_blocking<S: AsRef<str>>(&self, path: S) -> Result<(HeadObjectResult, u16)> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.head_object(path))?)
+        rt.block_on(self.head_object(path))
     }
 
     /// Put into an S3 bucket, async.
@@ -834,7 +833,7 @@ impl Bucket {
         content: &[u8],
     ) -> Result<(Vec<u8>, u16)> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.put_object(path, content))?)
+        rt.block_on(self.put_object(path, content))
     }
 
     /// Put into an S3 bucket, blocks.
@@ -865,7 +864,7 @@ impl Bucket {
         content_type: &str,
     ) -> Result<(Vec<u8>, u16)> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.put_object_with_content_type(path, content, content_type))?)
+        rt.block_on(self.put_object_with_content_type(path, content, content_type))
     }
 
     fn _tags_xml<S: AsRef<str>>(&self, tags: &[(S, S)]) -> String {
@@ -920,7 +919,7 @@ impl Bucket {
         path: &str,
         tags: &[(S, S)],
     ) -> Result<(Vec<u8>, u16)> {
-        let content = self._tags_xml(&tags);
+        let content = self._tags_xml(tags);
         let command = Command::PutObjectTagging { tags: &content };
         let request = Request::new(self, path, command);
         Ok(request.response_data_future(false).await?)
@@ -952,7 +951,7 @@ impl Bucket {
         tags: &[(S, S)],
     ) -> Result<(Vec<u8>, u16)> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.put_object_tagging(path, tags))?)
+        rt.block_on(self.put_object_tagging(path, tags))
     }
 
     /// Delete tags from an S3 object, async.
@@ -1009,7 +1008,7 @@ impl Bucket {
     /// ```
     pub fn delete_object_tagging_blocking<S: AsRef<str>>(&self, path: S) -> Result<(Vec<u8>, u16)> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.delete_object_tagging(path))?)
+        rt.block_on(self.delete_object_tagging(path))
     }
 
     /// Retrieve an S3 object list of tags, async.
@@ -1090,7 +1089,7 @@ impl Bucket {
         path: S,
     ) -> Result<(Option<Tagging>, u16)> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.get_object_tagging(path))?)
+        rt.block_on(self.get_object_tagging(path))
     }
 
     pub fn list_page_blocking(
@@ -1102,13 +1101,7 @@ impl Bucket {
         max_keys: Option<usize>,
     ) -> Result<(ListBucketResult, u16)> {
         let rt = Runtime::new()?;
-        Ok(rt.block_on(self.list_page(
-            prefix,
-            delimiter,
-            continuation_token,
-            start_after,
-            max_keys,
-        ))?)
+        rt.block_on(self.list_page(prefix, delimiter, continuation_token, start_after, max_keys))
     }
 
     pub async fn list_page(
@@ -1321,36 +1314,28 @@ impl Bucket {
 
     /// Get a reference to the AWS access key.
     pub fn access_key(&self) -> Option<String> {
-        if let Some(access_key) = self.credentials.access_key.clone() {
-            Some(access_key.replace('\n', ""))
-        } else {
-            None
-        }
+        self.credentials
+            .access_key
+            .as_ref()
+            .map(|key| key.replace('\n', ""))
     }
 
     /// Get a reference to the AWS secret key.
     pub fn secret_key(&self) -> Option<String> {
-        if let Some(secret_key) = self.credentials.secret_key.clone() {
-            Some(secret_key.replace('\n', ""))
-        } else {
-            None
-        }
+        self.credentials
+            .secret_key
+            .as_ref()
+            .map(|key| key.replace('\n', ""))
     }
 
     /// Get a reference to the AWS security token.
     pub fn security_token(&self) -> Option<&str> {
-        self.credentials
-            .security_token
-            .as_ref()
-            .map(std::string::String::as_str)
+        self.credentials.security_token.as_deref()
     }
 
     /// Get a reference to the AWS session token.
     pub fn session_token(&self) -> Option<&str> {
-        self.credentials
-            .session_token
-            .as_ref()
-            .map(std::string::String::as_str)
+        self.credentials.session_token.as_deref()
     }
 
     /// Get a reference to the full [`Credentials`](struct.Credentials.html)

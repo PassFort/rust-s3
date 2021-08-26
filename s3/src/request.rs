@@ -70,11 +70,7 @@ impl<'a> Request<'a> {
         };
         let custom_headers = match &self.command {
             Command::PresignPut { custom_headers, .. } => {
-                if let Some(custom_headers) = custom_headers {
-                    Some(custom_headers.clone())
-                } else {
-                    None
-                }
+                custom_headers.clone()
             }
             _ => None,
         };
@@ -101,10 +97,10 @@ impl<'a> Request<'a> {
         let path = if self.path.starts_with('/') {
             &self.path[1..]
         } else {
-            &self.path[..]
+            self.path
         };
 
-        url_str.push_str("/");
+        url_str.push('/');
 
         if encode_path {
             url_str.push_str(&signing::uri_encode(path, true));
@@ -225,13 +221,7 @@ impl<'a> Request<'a> {
     }
 
     fn presigned_url_no_sig(&self, expiry: u32, custom_headers: Option<HeaderMap>) -> Result<Url> {
-        let token = if let Some(security_token) = self.bucket.security_token() {
-            Some(security_token)
-        } else if let Some(session_token) = self.bucket.session_token() {
-            Some(session_token)
-        } else {
-            None
-        };
+        let token = self.bucket.security_token().or_else(|| self.bucket.session_token());
         let url = Url::parse(&format!(
             "{}{}",
             self.url(true),
@@ -257,11 +247,7 @@ impl<'a> Request<'a> {
 
         let custom_headers = match &self.command {
             Command::PresignPut { custom_headers, .. } => {
-                if let Some(custom_headers) = custom_headers {
-                    Some(custom_headers.clone())
-                } else {
-                    None
-                }
+                custom_headers.clone()
             }
             _ => None,
         };
@@ -280,7 +266,7 @@ impl<'a> Request<'a> {
     }
 
     fn signing_key(&self) -> Result<Vec<u8>> {
-        Ok(signing::signing_key(
+        signing::signing_key(
             &self.datetime,
             &self
                 .bucket
@@ -288,7 +274,7 @@ impl<'a> Request<'a> {
                 .expect("Secret key must be provided to sign headers, found None"),
             &self.bucket.region(),
             "s3",
-        )?)
+        )
     }
 
     fn presigned_authorization(&self, custom_headers: Option<HeaderMap>) -> Result<String> {

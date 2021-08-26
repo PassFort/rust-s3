@@ -165,7 +165,7 @@ impl Credentials {
     }
 
     pub fn default() -> Result<Credentials> {
-        Ok(Credentials::new(None, None, None, None, None)?)
+        Credentials::new(None, None, None, None, None)
     }
 
     pub fn anonymous() -> Result<Credentials> {
@@ -190,31 +190,18 @@ impl Credentials {
             return Ok(c);
         }
 
-        let security_token = if let Some(security_token) = security_token {
-            Some(security_token.to_string())
-        } else {
-            None
-        };
+        let security_token = security_token.map(str::to_string);
+        let session_token = session_token.map(str::to_string);
 
-        let session_token = if let Some(session_token) = session_token {
-            Some(session_token.to_string())
-        } else {
-            None
-        };
 
-        let credentials = if let Some(access_key) = access_key {
-            if let Some(secret_key) = secret_key {
-                Some(Credentials {
-                    access_key: Some(access_key.to_string()),
-                    secret_key: Some(secret_key.to_string()),
-                    security_token,
-                    session_token,
-                })
-            } else {
-                None
-            }
-        } else {
-            None
+        let credentials = match (access_key, secret_key) {
+            (Some(access_key), Some(secret_key)) => Some(Credentials {
+                access_key: Some(access_key.to_string()),
+                secret_key: Some(secret_key.to_string()),
+                security_token,
+                session_token,
+            }),
+            _ => None,
         };
 
         match credentials {
@@ -329,10 +316,7 @@ impl Credentials {
         };
         let profile = format!("{}/.aws/credentials", home_dir?.display());
         let conf = Ini::load_from_file(&profile)?;
-        let section = match section {
-            Some(s) => s,
-            None => "default",
-        };
+        let section = section.unwrap_or("default");
         let mut access_key = Err(AwsCredsError::from("Missing aws_access_key_id section"));
         let mut secret_key = Err(AwsCredsError::from("Missing aws_secret_access_key section"));
         let mut security_token = None;
@@ -346,14 +330,8 @@ impl Credentials {
                 Some(x) => Ok(x.to_owned()),
                 None => Err(AwsCredsError::from("Missing aws_secret_access_key section")),
             };
-            security_token = match data.get("aws_security_token") {
-                Some(x) => Some(x.to_owned()),
-                None => None,
-            };
-            session_token = match data.get("aws_session_token") {
-                Some(x) => Some(x.to_owned()),
-                None => None,
-            }
+            security_token = data.get("aws_security_token").map(str::to_owned);
+            session_token = data.get("aws_session_token").map(str::to_owned);
         }
 
         Ok(Credentials {
