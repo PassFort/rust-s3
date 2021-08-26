@@ -270,7 +270,7 @@ impl Bucket {
     /// println!("Code: {}\nData: {:?}", code, data);
     /// ```
     pub fn get_object_blocking<S: AsRef<str>>(&self, path: S) -> Result<(Vec<u8>, u16)> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.get_object(path))?)
     }
 
@@ -326,7 +326,7 @@ impl Bucket {
         path: &str,
         writer: &mut T,
     ) -> Result<u16> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.get_object_stream(path, writer))?)
     }
 
@@ -375,7 +375,7 @@ impl Bucket {
     /// use s3::creds::Credentials;
     /// use s3::S3Error;
     /// use tokio::fs::File;
-    /// use tokio::prelude::*;
+    ///
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), S3Error> {
@@ -503,7 +503,6 @@ impl Bucket {
     /// use s3::bucket::Bucket;
     /// use s3::creds::Credentials;
     /// use s3::S3Error;
-    /// use tokio::prelude::*;
     /// use tokio::fs::File;
     ///
     /// #[tokio::main]
@@ -563,7 +562,7 @@ impl Bucket {
         path: impl AsRef<Path>,
         s3_path: impl AsRef<str>,
     ) -> Result<u16> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.put_object_stream(path, s3_path))?)
     }
 
@@ -632,7 +631,7 @@ impl Bucket {
     /// println!("{}", bucket.location_blocking().unwrap().0)
     /// ```
     pub fn location_blocking(&self) -> Result<(Region, u16)> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.location())?)
     }
 
@@ -682,7 +681,7 @@ impl Bucket {
     /// assert_eq!(204, code);
     /// ```
     pub fn delete_object_blocking<S: AsRef<str>>(&self, path: S) -> Result<(Vec<u8>, u16)> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.delete_object(path))?)
     }
 
@@ -727,7 +726,7 @@ impl Bucket {
     /// assert_eq!(head_object_result.content_type.unwrap() , "image/png".to_owned());
     /// ```
     pub fn head_object_blocking<S: AsRef<str>>(&self, path: S) -> Result<(HeadObjectResult, u16)> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.head_object(path))?)
     }
 
@@ -834,7 +833,7 @@ impl Bucket {
         path: S,
         content: &[u8],
     ) -> Result<(Vec<u8>, u16)> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.put_object(path, content))?)
     }
 
@@ -865,7 +864,7 @@ impl Bucket {
         content: &[u8],
         content_type: &str,
     ) -> Result<(Vec<u8>, u16)> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.put_object_with_content_type(path, content, content_type))?)
     }
 
@@ -952,7 +951,7 @@ impl Bucket {
         path: &str,
         tags: &[(S, S)],
     ) -> Result<(Vec<u8>, u16)> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.put_object_tagging(path, tags))?)
     }
 
@@ -1009,7 +1008,7 @@ impl Bucket {
     /// assert_eq!(201, code);
     /// ```
     pub fn delete_object_tagging_blocking<S: AsRef<str>>(&self, path: S) -> Result<(Vec<u8>, u16)> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.delete_object_tagging(path))?)
     }
 
@@ -1090,7 +1089,7 @@ impl Bucket {
         &self,
         path: S,
     ) -> Result<(Option<Tagging>, u16)> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.get_object_tagging(path))?)
     }
 
@@ -1102,7 +1101,7 @@ impl Bucket {
         start_after: Option<String>,
         max_keys: Option<usize>,
     ) -> Result<(ListBucketResult, u16)> {
-        let mut rt = Runtime::new()?;
+        let rt = Runtime::new()?;
         Ok(rt.block_on(self.list_page(
             prefix,
             delimiter,
@@ -1488,6 +1487,18 @@ mod test {
         (0..size).map(|_| 33).collect()
     }
 
+    #[test]
+    fn no_creds_request() {
+        let bucket = Bucket::new(
+            "rust-s3-test",
+            "eu-central-1".parse().unwrap(),
+            Credentials::new(Some("foo"), Some("bar"), None, None, None).unwrap(),
+        )
+        .unwrap();
+        let (_, status) = bucket.get_object_blocking("DOESN'T MATTER").unwrap();
+        assert_eq!(status, 403)
+    }
+
     #[tokio::test]
     #[ignore]
     async fn streaming_test_put_get_delete_big_object() {
@@ -1560,7 +1571,10 @@ mod test {
         assert_eq!(test, data);
         let (head_object_result, code) = bucket.head_object(s3_path).await.unwrap();
         assert_eq!(code, 200);
-        assert_eq!(head_object_result.content_type.unwrap(), "application/octet-stream".to_owned());
+        assert_eq!(
+            head_object_result.content_type.unwrap(),
+            "application/octet-stream".to_owned()
+        );
         // println!("{:?}", head_object_result);
         let (_, code) = bucket.delete_object(s3_path).await.unwrap();
         assert_eq!(code, 204);
@@ -1582,7 +1596,10 @@ mod test {
         assert_eq!(test, data);
         let (head_object_result, code) = bucket.head_object(s3_path).await.unwrap();
         assert_eq!(code, 200);
-        assert_eq!(head_object_result.content_type.unwrap(), "application/octet-stream".to_owned());
+        assert_eq!(
+            head_object_result.content_type.unwrap(),
+            "application/octet-stream".to_owned()
+        );
         // println!("{:?}", head_object_result);
         let (_, code) = bucket.delete_object(s3_path).await.unwrap();
         assert_eq!(code, 204);
@@ -1604,7 +1621,10 @@ mod test {
         assert_eq!(test, data);
         let (head_object_result, code) = bucket.head_object(s3_path).await.unwrap();
         assert_eq!(code, 200);
-        assert_eq!(head_object_result.content_type.unwrap(), "application/octet-stream".to_owned());
+        assert_eq!(
+            head_object_result.content_type.unwrap(),
+            "application/octet-stream".to_owned()
+        );
         // println!("{:?}", head_object_result);
         let (_, code) = bucket.delete_object(s3_path).await.unwrap();
         assert_eq!(code, 204);
@@ -1626,12 +1646,15 @@ mod test {
         assert_eq!(test, data);
         let (head_object_result, code) = bucket.head_object_blocking(s3_path).unwrap();
         assert_eq!(code, 200);
-        assert_eq!(head_object_result.content_type.unwrap(), "application/octet-stream".to_owned());
+        assert_eq!(
+            head_object_result.content_type.unwrap(),
+            "application/octet-stream".to_owned()
+        );
         // println!("{:?}", head_object_result);
         let (_, code) = bucket.delete_object_blocking(s3_path).unwrap();
         assert_eq!(code, 204);
     }
-    
+
     #[test]
     #[ignore]
     fn test_presign_put() {
