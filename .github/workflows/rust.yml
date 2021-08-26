@@ -9,20 +9,29 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    env:
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
     steps:
       - uses: actions/checkout@v2
       - name: clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
       - name: test --all-features
         run: cargo test --all-features
+      - name: Setup minio
+        run: |
+          docker run -d -p 9000:9000 --name minio \
+                     -e "MINIO_ACCESS_KEY=$AWS_ACCESS_KEY_ID" \
+                     -e "MINIO_SECRET_KEY=$AWS_SECRET_ACCESS_KEY" \
+                     -v /tmp/data:/data \
+                     -v /tmp/config:/root/.minio \
+                     minio/minio server /data
+
+          export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+          export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+          export AWS_EC2_METADATA_DISABLED=true
+
+          aws --endpoint-url http://127.0.0.1:9000/ s3 mb s3://testbucket
+
       - name: test --ignored
-        if: github.repository == 'durch/rust-s3'
-        env:
-          EU_AWS_ACCESS_KEY_ID: ${{ secrets.EU_AWS_ACCESS_KEY_ID }}
-          EU_AWS_SECRET_ACCESS_KEY: ${{ secrets.EU_AWS_SECRET_ACCESS_KEY }}
-          GC_ACCESS_KEY_ID: ${{ secrets.GC_ACCESS_KEY_ID }}
-          GC_SECRET_ACCESS_KEY: ${{ secrets.GC_SECRET_ACCESS_KEY }}
-          WASABI_ACCESS_KEY_ID: ${{ secrets.WASABI_ACCESS_KEY_ID }}
-          WASABI_SECRET_ACCESS_KEY: ${{ secrets.WASABI_SECRET_ACCESS_KEY }}
         run: cargo test -- --ignored

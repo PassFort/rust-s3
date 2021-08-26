@@ -1400,88 +1400,31 @@ mod test {
     use crate::creds::Credentials;
     use crate::region::Region;
     use crate::Bucket;
-    use crate::BucketConfiguration;
     use std::env;
     use std::fs::File;
     use std::io::prelude::*;
 
-    fn test_aws_credentials() -> Credentials {
-        Credentials::new(
-            Some(&env::var("EU_AWS_ACCESS_KEY_ID").unwrap()),
-            Some(&env::var("EU_AWS_SECRET_ACCESS_KEY").unwrap()),
-            None,
-            None,
-            None,
-        )
-        .unwrap()
-    }
-
-    fn test_gc_credentials() -> Credentials {
-        Credentials::new(
-            Some(&env::var("GC_ACCESS_KEY_ID").unwrap()),
-            Some(&env::var("GC_SECRET_ACCESS_KEY").unwrap()),
-            None,
-            None,
-            None,
-        )
-        .unwrap()
-    }
-
-    fn test_wasabi_credentials() -> Credentials {
-        Credentials::new(
-            Some(&env::var("WASABI_ACCESS_KEY_ID").unwrap()),
-            Some(&env::var("WASABI_SECRET_ACCESS_KEY").unwrap()),
-            None,
-            None,
-            None,
-        )
-        .unwrap()
-    }
-
     fn test_aws_bucket() -> Bucket {
-        Bucket::new(
-            "rust-s3-test",
-            "eu-central-1".parse().unwrap(),
-            test_aws_credentials(),
-        )
-        .unwrap()
-    }
-
-    fn test_wasabi_bucket() -> Bucket {
-        Bucket::new(
-            "rust-s3",
-            "wa-eu-central-1".parse().unwrap(),
-            test_wasabi_credentials(),
-        )
-        .unwrap()
-    }
-
-    fn test_gc_bucket() -> Bucket {
-        Bucket::new(
-            "rust-s3",
+        Bucket::new_with_path_style(
+            "testbucket",
             Region::Custom {
-                region: "us-east1".to_owned(),
-                endpoint: "https://storage.googleapis.com".to_owned(),
+                region: "us-east-1".to_owned(),
+                endpoint: "http://127.0.0.1:9000".to_owned(),
             },
-            test_gc_credentials(),
+            Credentials::new(
+                Some(&env::var("AWS_ACCESS_KEY_ID").unwrap()),
+                Some(&env::var("AWS_SECRET_ACCESS_KEY").unwrap()),
+                None,
+                None,
+                None,
+            )
+            .unwrap(),
         )
         .unwrap()
     }
 
     fn object(size: u32) -> Vec<u8> {
         (0..size).map(|_| 33).collect()
-    }
-
-    #[test]
-    fn no_creds_request() {
-        let bucket = Bucket::new(
-            "rust-s3-test",
-            "eu-central-1".parse().unwrap(),
-            Credentials::new(Some("foo"), Some("bar"), None, None, None).unwrap(),
-        )
-        .unwrap();
-        let (_, status) = bucket.get_object_blocking("DOESN'T MATTER").unwrap();
-        assert_eq!(status, 403)
     }
 
     #[tokio::test]
@@ -1565,56 +1508,6 @@ mod test {
         assert_eq!(code, 204);
     }
 
-    #[tokio::test]
-    #[ignore]
-    async fn gc_test_put_head_get_delete_object() {
-        let s3_path = "/test.file";
-        let bucket = test_gc_bucket();
-        let test: Vec<u8> = object(3072);
-
-        let (_data, code) = bucket.put_object(s3_path, &test).await.unwrap();
-        // println!("{}", std::str::from_utf8(&data).unwrap());
-        assert_eq!(code, 200);
-        let (data, code) = bucket.get_object(s3_path).await.unwrap();
-        assert_eq!(code, 200);
-        // println!("{}", std::str::from_utf8(&data).unwrap());
-        assert_eq!(test, data);
-        let (head_object_result, code) = bucket.head_object(s3_path).await.unwrap();
-        assert_eq!(code, 200);
-        assert_eq!(
-            head_object_result.content_type.unwrap(),
-            "application/octet-stream".to_owned()
-        );
-        // println!("{:?}", head_object_result);
-        let (_, code) = bucket.delete_object(s3_path).await.unwrap();
-        assert_eq!(code, 204);
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn wasabi_test_put_head_get_delete_object() {
-        let s3_path = "/test.file";
-        let bucket = test_wasabi_bucket();
-        let test: Vec<u8> = object(3072);
-
-        let (_data, code) = bucket.put_object(s3_path, &test).await.unwrap();
-        // println!("{}", std::str::from_utf8(&data).unwrap());
-        assert_eq!(code, 200);
-        let (data, code) = bucket.get_object(s3_path).await.unwrap();
-        assert_eq!(code, 200);
-        // println!("{}", std::str::from_utf8(&data).unwrap());
-        assert_eq!(test, data);
-        let (head_object_result, code) = bucket.head_object(s3_path).await.unwrap();
-        assert_eq!(code, 200);
-        assert_eq!(
-            head_object_result.content_type.unwrap(),
-            "application/octet-stream".to_owned()
-        );
-        // println!("{:?}", head_object_result);
-        let (_, code) = bucket.delete_object(s3_path).await.unwrap();
-        assert_eq!(code, 204);
-    }
-
     #[test]
     #[ignore]
     fn test_put_head_get_delete_object_blocking() {
@@ -1676,68 +1569,5 @@ mod test {
 
         let url = bucket.presign_get(s3_path, 86400).unwrap();
         assert!(url.contains("/test%2Ftest.file?"))
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_bucket_create_delete_default_region() {
-        let config = BucketConfiguration::default();
-        let response = Bucket::create(
-            &uuid::Uuid::new_v4().to_string(),
-            "us-east-1".parse().unwrap(),
-            test_aws_credentials(),
-            config,
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(&response.response_text, "");
-
-        assert_eq!(response.response_code, 200);
-
-        let response_code = response.bucket.delete().await.unwrap();
-        assert!(response_code < 300);
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_bucket_create_delete_non_default_region() {
-        let config = BucketConfiguration::default();
-        let response = Bucket::create(
-            &uuid::Uuid::new_v4().to_string(),
-            "eu-central-1".parse().unwrap(),
-            test_aws_credentials(),
-            config,
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(&response.response_text, "");
-
-        assert_eq!(response.response_code, 200);
-
-        let response_code = response.bucket.delete().await.unwrap();
-        assert!(response_code < 300);
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_bucket_create_delete_non_default_region_public() {
-        let config = BucketConfiguration::public();
-        let response = Bucket::create(
-            &uuid::Uuid::new_v4().to_string(),
-            "eu-central-1".parse().unwrap(),
-            test_aws_credentials(),
-            config,
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(&response.response_text, "");
-
-        assert_eq!(response.response_code, 200);
-
-        let response_code = response.bucket.delete().await.unwrap();
-        assert!(response_code < 300);
     }
 }
